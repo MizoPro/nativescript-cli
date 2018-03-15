@@ -150,7 +150,7 @@ interface INativePrepare {
 	skipNativePrepare: boolean;
 }
 
-interface IBuildConfig extends IAndroidBuildOptionsSettings, IiOSBuildConfig, IProjectDir {
+interface IBuildConfig extends IAndroidBuildOptionsSettings, IiOSBuildConfig, IProjectDir, IRelease {
 	clean?: boolean;
 	architectures?: string[];
 	buildOutputStdio?: string;

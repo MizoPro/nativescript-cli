@@ -38,7 +38,7 @@ class PlatformData implements IPlatformData {
 	getDeviceBuildOutputPath = (buildTypeOption: IRelease) => {
 		return "";
 	}
-	getValidPackageNames = (buildOptions: { isForDevice?: boolean, isReleaseBuild?: boolean }) => [""];
+	getValidBuildOutputData = (buildOptions: { isForDevice?: boolean, isReleaseBuild?: boolean }) => ({ validPackageNames: [""] });
 	validPackageNamesForDevice: string[] = [];
 	frameworkFilesExtensions = [".jar", ".dat"];
 	appDestinationDirectoryPath = "";

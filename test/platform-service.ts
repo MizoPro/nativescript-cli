@@ -88,7 +88,8 @@ function createTestInjector() {
 	testInjector.register("projectChangesService", ProjectChangesLib.ProjectChangesService);
 	testInjector.register("emulatorPlatformService", stubs.EmulatorPlatformService);
 	testInjector.register("analyticsService", {
-		track: async (): Promise<any[]> => undefined
+		track: async (): Promise<any[]> => undefined,
+		trackEventActionInGoogleAnalytics: () => Promise.resolve()
 	});
 	testInjector.register("messages", Messages);
 	testInjector.register("devicePathProvider", {});
@@ -912,6 +913,109 @@ describe('Platform Service Tests', () => {
 
 			// Asserts that prepare has caught invalid xml
 			assert.isFalse(warnings.indexOf("has errors") !== -1);
+		});
+	});
+
+	describe.only("build", () => {
+		function mockData(testInjector: IInjector, buildOutput: string[], validBuildPackageData?: IValidBuildOutputData, ) {
+			mockPlatformsData(testInjector, validBuildPackageData);
+			mockFileSystem(testInjector, buildOutput);
+			platformService.saveBuildInfoFile = () => undefined;
+		}
+
+		function mockPlatformsData(testInjector: IInjector, validBuildPackageData?: IValidBuildOutputData): void {
+			// TODO: Fix this mocks
+			const platformsData = testInjector.resolve("platformsData");
+			platformsData.getPlatformData = (platform: string) => {
+				return {
+					appDestinationDirectoryPath: "",
+					appResourcesDestinationDirectoryPath: "",
+					normalizedPlatformName: "Android",
+					projectRoot: "123",
+					platformProjectService: {
+						prepareProject: (): any => null,
+						prepareAppResources: (): any => null,
+						validate: () => Promise.resolve(),
+						createProject: (projectRoot: string, frameworkDir: string) => Promise.resolve(),
+						interpolateData: (projectRoot: string) => Promise.resolve(),
+						afterCreateProject: (projectRoot: string): any => null,
+						getAppResourcesDestinationDirectoryPath: () => "",
+						processConfigurationFilesFromAppResources: () => Promise.resolve(),
+						ensureConfigurationFileInAppResources: (): any => null,
+						interpolateConfigurationFile: (): void => undefined,
+						isPlatformPrepared: (projectRoot: string) => false,
+						checkForChanges: () => { /* */ },
+						buildProject: () => Promise.resolve(),
+						on: () => {},
+						removeListener: () => {}
+					},
+					frameworkPackageName: "tns-android",
+					getValidBuildOutputData: () => validBuildPackageData || ({validPackageNames: ["app-debug.apk", "app-release.apk"], regexes: [/app-.*-(debug|release).apk/]}),
+					getDeviceBuildOutputPath: () => ""
+				};
+			};
+		}
+
+		function mockFileSystem(testInjector: IInjector, enumeratedFiles: string[]) {
+			const fs = testInjector.resolve<IFileSystem>("fs");
+			fs.enumerateFilesInDirectorySync = () => enumeratedFiles;
+			fs.getFsStats = () => (<any>({ mtime: new Date() }));
+		}
+
+		// TODO: Consider to improve this mocks
+		const projectData = {
+			projectName: "",
+			platformsDir: "",
+			projectFilePath: "",
+			projectId: "",
+			dependencies: {},
+			devDependencies: {},
+			appDirectoryPath: "",
+			appResourcesDirectoryPath: "",
+			projectType: ""
+		};
+
+		function getTestCases(configuration: string) {
+			return [{
+				name: "no additional options are specified in .gradle file",
+				buildOutput: [`/my/path/${configuration}/app-${configuration}.apk`],
+				expectedResult: `/my/path/${configuration}/app-${configuration}.apk`
+			}, {
+				name: "productFlavors are specified in .gradle file",
+				buildOutput: [`/my/path/arm64Demo/${configuration}/app-arm64-demo-${configuration}.apk`,
+					`/my/path/arm64Full/${configuration}/app-arm64-full-${configuration}.apk`,
+					`/my/path/armDemo/${configuration}/app-arm-demo-${configuration}.apk`,
+					`/my/path/armFull/${configuration}/app-arm-full-${configuration}.apk`,
+					`/my/path/x86Demo/${configuration}/app-x86-demo-${configuration}.apk`,
+					`/my/path/x86Full/${configuration}/app-x86-full-${configuration}.apk`],
+				expectedResult: `/my/path/x86Full/${configuration}/app-x86-full-${configuration}.apk`
+			}, {
+				name: "split optiona are specified in .gradle file",
+				buildOutput: [`/my/path/${configuration}/app-arm64-v8a-${configuration}.apk`,
+					`/my/path/${configuration}/app-armeabi-v7a-${configuration}.apk`,
+					`/my/path/${configuration}/app-universal-${configuration}.apk`,
+					`/my/path/${configuration}/app-x86-${configuration}.apk`],
+				expectedResult: `/my/path/${configuration}/app-x86-${configuration}.apk`
+			}];
+		}
+
+		const buildConfigs = [{buildForDevice: false}, {buildForDevice: true}];
+
+		describe("android platform", () => {
+			_.each(buildConfigs, buildConfig => {
+				_.each(["debug", "release"], configuration => {
+					_.each(getTestCases(configuration), testCase => {
+						it(`should find correct ${configuration} .apk when ${testCase.name} and buildConfig is ${JSON.stringify(buildConfig)}`, async () => {
+							mockData(testInjector, testCase.buildOutput);
+							const actualResult = await platformService.buildPlatform("Android", <IBuildConfig>buildConfig, <IProjectData>projectData);
+							assert.deepEqual(actualResult, testCase.expectedResult);
+						});
+					});
+				});
+			});
+		});
+		describe("iOS platform", () => {
+
 		});
 	});
 });

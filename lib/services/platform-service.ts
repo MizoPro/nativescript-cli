@@ -347,8 +347,8 @@ export class PlatformService extends EventEmitter implements IPlatformService {
 			return true;
 		}
 
-		const packageNames = platformData.getValidPackageNames({ isForDevice: forDevice });
-		const packages = this.getApplicationPackages(outputPath, packageNames);
+		const packageData = platformData.getValidBuildOutputData({ isForDevice: forDevice });
+		const packages = this.getApplicationPackages(outputPath, packageData);
 		if (packages.length === 0) {
 			return true;
 		}
@@ -746,27 +746,33 @@ export class PlatformService extends EventEmitter implements IPlatformService {
 		return platformData.platformProjectService.isPlatformPrepared(platformData.projectRoot, projectData);
 	}
 
-	private getApplicationPackages(buildOutputPath: string, validPackageNames: string[]): IApplicationPackage[] {
+	private getApplicationPackages(buildOutputPath: string, validBuildPackageData: IValidBuildOutputData): IApplicationPackage[] {
 		// Get latest package` that is produced from build
-		const candidates = this.$fs.readDirectory(buildOutputPath);
-		const packages = _.filter(candidates, candidate => {
-			return _.includes(validPackageNames, candidate);
-		}).map(currentPackage => {
-			currentPackage = path.join(buildOutputPath, currentPackage);
+		// const regExp = new RegExp() // TODO use regExp in order to test filePath
 
-			return {
-				packageName: currentPackage,
-				time: this.$fs.getFsStats(currentPackage).mtime
-			};
-		});
+		const candidates = this.$fs.enumerateFilesInDirectorySync(buildOutputPath)
+			.filter(filePath => /\/(debug|release)\//.test(filePath));
 
-		return packages;
+		let packages = candidates.filter(filePath => _.includes(validBuildPackageData.validPackageNames, path.basename(filePath)));
+
+		if (packages.length === 0 && validBuildPackageData.regexes && validBuildPackageData.regexes.length) {
+			packages = candidates.filter(filepath => _.some(validBuildPackageData.regexes, regex => regex.test(path.basename(filepath))));
+		}
+
+		return packages. map(filepath => this.createApplicationPackage(filepath));
 	}
 
-	private getLatestApplicationPackage(buildOutputPath: string, validPackageNames: string[]): IApplicationPackage {
-		let packages = this.getApplicationPackages(buildOutputPath, validPackageNames);
+	private createApplicationPackage(filepath: string): IApplicationPackage {
+		return {
+			packageName: filepath,
+			time: this.$fs.getFsStats(filepath).mtime
+		};
+	}
+
+	private getLatestApplicationPackage(buildOutputPath: string, validBuildPackageData: IValidBuildOutputData): IApplicationPackage {
+		let packages = this.getApplicationPackages(buildOutputPath, validBuildPackageData);
 		if (packages.length === 0) {
-			const packageExtName = path.extname(validPackageNames[0]);
+			const packageExtName = path.extname(validBuildPackageData.validPackageNames[0]);
 			this.$errors.fail("No %s found in %s directory", packageExtName, buildOutputPath);
 		}
 
@@ -776,11 +782,11 @@ export class PlatformService extends EventEmitter implements IPlatformService {
 	}
 
 	public getLatestApplicationPackageForDevice(platformData: IPlatformData, buildConfig: IBuildConfig, outputPath?: string): IApplicationPackage {
-		return this.getLatestApplicationPackage(outputPath || platformData.getDeviceBuildOutputPath(buildConfig), platformData.getValidPackageNames({ isForDevice: true, isReleaseBuild: buildConfig.release }));
+		return this.getLatestApplicationPackage(outputPath || platformData.getDeviceBuildOutputPath(buildConfig), platformData.getValidBuildOutputData({ isForDevice: true, isReleaseBuild: buildConfig.release }));
 	}
 
 	public getLatestApplicationPackageForEmulator(platformData: IPlatformData, buildConfig: IBuildConfig, outputPath?: string): IApplicationPackage {
-		return this.getLatestApplicationPackage(outputPath || platformData.emulatorBuildOutputPath || platformData.getDeviceBuildOutputPath(buildConfig), platformData.getValidPackageNames({ isForDevice: false, isReleaseBuild: buildConfig.release }));
+		return this.getLatestApplicationPackage(outputPath || platformData.emulatorBuildOutputPath || platformData.getDeviceBuildOutputPath(buildConfig), platformData.getValidBuildOutputData({ isForDevice: false, isReleaseBuild: buildConfig.release }));
 	}
 
 	private async updatePlatform(platform: string, version: string, platformTemplate: string, projectData: IProjectData, config: IPlatformOptions): Promise<void> {

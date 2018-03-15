@@ -86,15 +86,18 @@ export class AndroidProjectService extends projectServiceBaseLib.PlatformProject
 				getDeviceBuildOutputPath: (options: IRelease): string => {
 					return this.getDeviceBuildOutputPath(path.join(...deviceBuildOutputArr), projectData, options);
 				},
-				getValidPackageNames: (buildOptions: { isReleaseBuild?: boolean, isForDevice?: boolean }): string[] => {
+				getValidBuildOutputData: (buildOptions: { isReleaseBuild?: boolean, isForDevice?: boolean }): IValidBuildOutputData => {
 					const buildMode = buildOptions.isReleaseBuild ? Configurations.Release.toLowerCase() : Configurations.Debug.toLowerCase();
 
-					return [
-						`${packageName}-${buildMode}.apk`,
-						`${projectData.projectName}-${buildMode}.apk`,
-						`${projectData.projectName}.apk`,
-						`app-${buildMode}.apk`
-					];
+					return {
+						validPackageNames: [
+							`${packageName}-${buildMode}.apk`,
+							`${projectData.projectName}-${buildMode}.apk`,
+							`${projectData.projectName}.apk`,
+							`app-${buildMode}.apk`
+						],
+						regexes: [/app-.*-(debug|release).apk/]
+					};
 				},
 				frameworkFilesExtensions: [".jar", ".dat", ".so"],
 				configurationFileName: constants.MANIFEST_FILE_NAME,
@@ -109,20 +112,22 @@ export class AndroidProjectService extends projectServiceBaseLib.PlatformProject
 	}
 
 	private getDeviceBuildOutputPath(currentPath: string, projectData: IProjectData, options: IRelease): string {
-		const currentPlatformData: IDictionary<any> = this.$projectDataService.getNSValue(projectData.projectDir, constants.TNS_ANDROID_RUNTIME_NAME);
-		const platformVersion = currentPlatformData && currentPlatformData[constants.VERSION_STRING];
-		const buildType = options.release === true ? "release" : "debug";
-		const normalizedPath = path.join(currentPath, buildType);
+		// const currentPlatformData: IDictionary<any> = this.$projectDataService.getNSValue(projectData.projectDir, constants.TNS_ANDROID_RUNTIME_NAME);
+		// const platformVersion = currentPlatformData && currentPlatformData[constants.VERSION_STRING];
+		// const buildType = options.release === true ? "release" : "debug";
+		// const normalizedPath = path.join(currentPath, buildType);
 
-		if (semver.valid(platformVersion)) {
-			const gradleAndroidPluginVersion3xx = "4.0.0";
-			const normalizedPlatformVersion = `${semver.major(platformVersion)}.${semver.minor(platformVersion)}.0`;
-			if (semver.lt(normalizedPlatformVersion, gradleAndroidPluginVersion3xx)) {
-				return currentPath;
-			}
-		}
+		// if (semver.valid(platformVersion)) {
+		// 	const gradleAndroidPluginVersion3xx = "4.0.0";
+		// 	const normalizedPlatformVersion = `${semver.major(platformVersion)}.${semver.minor(platformVersion)}.0`;
+		// 	if (semver.lt(normalizedPlatformVersion, gradleAndroidPluginVersion3xx)) {
+		// 		return currentPath;
+		// 	}
+		// }
 
-		return normalizedPath;
+		// TODO: check if gradle has flavors and return currentPath
+
+		return currentPath;
 	}
 
 	// TODO: Remove prior to the 4.0 CLI release @Pip3r4o @PanayotCankov

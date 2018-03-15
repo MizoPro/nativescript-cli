@@ -262,7 +262,7 @@ interface IPlatformData {
 	appDestinationDirectoryPath: string;
 	getDeviceBuildOutputPath(options: IRelease): string;
 	emulatorBuildOutputPath?: string;
-	getValidPackageNames(buildOptions: { isReleaseBuild?: boolean, isForDevice?: boolean }): string[];
+	getValidBuildOutputData(buildOptions: { isReleaseBuild?: boolean, isForDevice?: boolean }): IValidBuildOutputData;
 	frameworkFilesExtensions: string[];
 	frameworkDirectoriesExtensions?: string[];
 	frameworkDirectoriesNames?: string[];
@@ -271,6 +271,11 @@ interface IPlatformData {
 	configurationFilePath?: string;
 	relativeToFrameworkConfigurationFilePath: string;
 	fastLivesyncFileExtensions: string[];
+}
+
+interface IValidBuildOutputData {
+	validPackageNames: string[];
+	regexes?: RegExp[];
 }
 
 interface IPlatformsData {
